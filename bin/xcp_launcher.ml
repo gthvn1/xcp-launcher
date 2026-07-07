@@ -16,20 +16,6 @@ type vm = {
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
 let redir_ty_to_string = function Udp -> "udp" | Tcp -> "tcp"
 
-let my_vm : vm =
-  {
-    name = "my_vm";
-    memory = 4096;
-    cores = 4;
-    disks = [ { ty = Qcow2; path = "disk.qcow2" } ];
-    redirections =
-      [
-        { ty = Tcp; port_host = 8022; port_vm = 22 };
-        { ty = Tcp; port_host = 8443; port_vm = 443 };
-        { ty = Tcp; port_host = 8080; port_vm = 80 };
-      ];
-  }
-
 let disk_to_args (disk_id : int) (disk : disk) : string list =
   [
     "-drive";
@@ -46,7 +32,7 @@ let redirection_to_hostfwd redirection : string =
 
 let redirections_to_args redirections : string list =
   let r = List.map redirection_to_hostfwd redirections in
-  [ "-netdev"; "user,id=net0," ^ String.concat "," r ]
+  [ "-netdev"; String.concat "," ("user,id=net0" :: r) ]
 
 let vm_to_args (vm : vm) : string list =
   let disks_args = List.mapi disk_to_args vm.disks |> List.concat in
@@ -73,6 +59,20 @@ let vm_to_args (vm : vm) : string list =
   ]
   @ disks_args
   @ redirections_to_args vm.redirections
+
+let my_vm : vm =
+  {
+    name = "my_vm";
+    memory = 4096;
+    cores = 4;
+    disks = [ { ty = Qcow2; path = "disk.qcow2" } ];
+    redirections =
+      [
+        { ty = Tcp; port_host = 8022; port_vm = 22 };
+        { ty = Tcp; port_host = 8443; port_vm = 443 };
+        { ty = Tcp; port_host = 8080; port_vm = 80 };
+      ];
+  }
 
 let main out proc_mgr =
   Eio.Process.run proc_mgr [ qemu_system; "--version" ];
