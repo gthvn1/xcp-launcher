@@ -13,6 +13,9 @@ type vm = {
   redirections : redirection list;
 }
 
+(* CHECKS *)
+
+(* HELPERS *)
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
 let redir_ty_to_string = function Udp -> "udp" | Tcp -> "tcp"
 

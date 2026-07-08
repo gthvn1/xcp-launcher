@@ -1,3 +1,6 @@
+module Vm = Xcp.Vm
+module Conf = Xcp.Conf
+
 let qemu_system = "qemu-system-x86_64"
 
 let main out proc_mgr =

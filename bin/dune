@@ -1,3 +1,3 @@
 (executable
  (name xcp_launcher)
- (libraries eio_main))
+ (libraries xcp))
