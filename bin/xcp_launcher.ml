@@ -6,7 +6,9 @@ let main out proc_mgr =
     (fun vm ->
       fun () ->
        let cmd = qemu_system :: Vm.vm_to_args vm in
-       Eio.Flow.copy_string (String.concat " " cmd ^ "\n") out;
+       Eio.Flow.copy_string
+         ("== Starting " ^ vm.name ^ "==\n" ^ String.concat " " cmd ^ "\n\n")
+         out;
        Eio.Process.run proc_mgr cmd)
     Conf.vms
   |> Eio.Fiber.all
