@@ -1,3 +1,3 @@
 (lang dune 3.24)
-(name xcp_laucher)
+(name xcp_launcher)
 

@@ -10,13 +10,18 @@ let main out proc_mgr =
       fun () ->
        let cmd = qemu_system :: Vm.vm_to_args vm in
        Eio.Flow.copy_string
-         ("== Starting " ^ vm.name ^ "==\n" ^ String.concat " " cmd ^ "\n\n")
+         ("== Starting " ^ vm.name ^ " ==\n" ^ String.concat " " cmd ^ "\n\n")
          out;
-       Eio.Process.run proc_mgr cmd)
+       try Eio.Process.run proc_mgr cmd
+       with _ex -> Printf.eprintf "%s failed" vm.name)
     Conf.vms
   |> Eio.Fiber.all
 
 let () =
+  (* TODO: group checks, and pass vm_dir maybe *)
+  if Option.is_none (Sys.getenv_opt "HOME") then (
+    Printf.eprintf "$HOME is not set, cannot check disks and other files";
+    exit 1);
   match Vm.check_host_ports Conf.vms with
   | Ok () ->
       Eio_main.run (fun env ->

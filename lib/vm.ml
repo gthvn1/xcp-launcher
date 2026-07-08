@@ -41,7 +41,7 @@ let disks_to_args (disks : disk list) (vm_dir : string) : string list =
   List.mapi
     (fun id disk ->
       let disk_id = string_of_int id in
-      let disk_path = vm_dir ^ "/" ^ disk.path in
+      let disk_path = Filename.concat vm_dir disk.path in
       [
         "-drive";
         "file=" ^ disk_path ^ ",if=none,format=" ^ disk_ty_to_string disk.ty
@@ -64,11 +64,13 @@ let redirections_to_args redirections : string list =
 let vm_to_args (vm : vm) : string list =
   let vm_dir =
     match Sys.getenv_opt "HOME" with
-    | Some d -> d ^ "/" ^ vm.base_dir
+    | Some d -> Filename.concat d vm.base_dir
     | None -> failwith "HOME doesn't exist"
   in
   (* TODO: probably pass the OVMF path as a VM field *)
   [
+    "-name";
+    vm.name;
     "-enable-kvm";
     "-m";
     string_of_int vm.memory;
