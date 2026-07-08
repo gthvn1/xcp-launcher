@@ -17,5 +17,11 @@ let main out proc_mgr =
   |> Eio.Fiber.all
 
 let () =
-  Eio_main.run (fun env ->
-      main (Eio.Stdenv.stdout env) (Eio.Stdenv.process_mgr env))
+  match Vm.check_host_ports Conf.vms with
+  | Ok () ->
+      Eio_main.run (fun env ->
+          main (Eio.Stdenv.stdout env) (Eio.Stdenv.process_mgr env))
+  | Error lst ->
+      Printf.eprintf "Following ports host are duplicated: %s\n"
+        (String.concat " " (List.map string_of_int lst));
+      exit 1

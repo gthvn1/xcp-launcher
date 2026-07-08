@@ -13,4 +13,8 @@ type vm = {
   redirections : redirection list;
 }
 
-val vm_to_args:  vm -> string list 
+val check_host_ports : vm list -> (unit, int list) result
+val vm_to_args : vm -> string list
+
+(* exposed for easy testing, remove it once well tested *)
+val duplicate_ints : int list -> int list

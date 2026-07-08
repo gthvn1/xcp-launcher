@@ -13,7 +13,25 @@ type vm = {
   redirections : redirection list;
 }
 
+module IntSet = Set.Make (Int)
+
 (* CHECKS *)
+let duplicate_ints (lst : int list) : int list =
+  let rec loop acc = function
+    | [] | [ _ ] -> acc
+    | a :: b :: xs ->
+        if a = b then loop (IntSet.add a acc) xs else loop acc (b :: xs)
+  in
+  loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
+
+let check_host_ports (vms : vm list) : (unit, int list) result =
+  let ports =
+    List.map (fun vm -> vm.redirections) vms
+    |> List.concat
+    |> List.map (fun r -> r.port_host)
+  in
+  let dup = duplicate_ints ports in
+  if List.is_empty dup then Ok () else Error dup
 
 (* HELPERS *)
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
