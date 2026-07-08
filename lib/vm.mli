@@ -1,17 +1,22 @@
-type disk_ty = Qcow2 | Raw
-type disk = { ty : disk_ty; path : string }
-type redir_ty = Udp | Tcp
-type redirection = { ty : redir_ty; port_host : int; port_vm : int }
+type disk
+type redirection
+type vm
 
-type vm = {
-  base_dir : string; (* this is where we will look for disks for example *)
-  name : string;
-  memory : int;
-  cores : int;
-  uefi_vars : string;
-  disks : disk list;
-  redirections : redirection list;
-}
+val qcow2 : string -> disk
+val raw : string -> disk
+val tcp : host:int -> guest:int -> redirection
+val udp : host:int -> guest:int -> redirection
+val name : vm -> string
+
+val make :
+  ?memory:int ->
+  ?cores:int ->
+  ?disks:disk list ->
+  ?redirections:redirection list ->
+  base_dir:string ->
+  uefi_vars:string ->
+  string ->
+  vm
 
 val check_host_ports : vm list -> (unit, int list) result
 val vm_to_args : vm -> string list

@@ -10,10 +10,10 @@ let main out proc_mgr =
       fun () ->
        let cmd = qemu_system :: Vm.vm_to_args vm in
        Eio.Flow.copy_string
-         ("== Starting " ^ vm.name ^ " ==\n" ^ String.concat " " cmd ^ "\n\n")
+         ("== Starting " ^ Vm.name vm ^ " ==\n" ^ String.concat " " cmd ^ "\n\n")
          out;
        try Eio.Process.run proc_mgr cmd
-       with _ex -> Printf.eprintf "%s failed" vm.name)
+       with _ex -> Printf.eprintf "%s failed\n" (Vm.name vm))
     Conf.vms
   |> Eio.Fiber.all
 

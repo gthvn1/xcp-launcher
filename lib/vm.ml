@@ -34,6 +34,22 @@ let check_host_ports (vms : vm list) : (unit, int list) result =
   if List.is_empty dup then Ok () else Error dup
 
 (* HELPERS *)
+let qcow2 path = { ty = Qcow2; path }
+let raw path = { ty = Raw; path }
+let tcp ~host ~guest = { ty = Tcp; port_host = host; port_vm = guest }
+let udp ~host ~guest = { ty = Udp; port_host = host; port_vm = guest }
+let name vm = vm.name
+
+(* The trailing string is the VM name. Making the name the final positional
+   argument is deliberate: OCaml only "commits" optional arguments when a
+   non-optional argument is applied after them, so you need something non-optional
+   at the end. Since name fills that role, callers don't need the awkward
+   trailing ()
+  *)
+let make ?(memory = 4096) ?(cores = 2) ?(disks = []) ?(redirections = [])
+    ~base_dir ~uefi_vars name =
+  { base_dir; name; memory; cores; uefi_vars; disks; redirections }
+
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
 let redir_ty_to_string = function Udp -> "udp" | Tcp -> "tcp"
 
