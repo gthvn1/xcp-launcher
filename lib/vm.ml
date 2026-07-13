@@ -2,6 +2,7 @@ type disk_ty = Qcow2 | Raw
 type disk = { ty : disk_ty; path : string }
 type redir_ty = Udp | Tcp
 type redirection = { ty : redir_ty; port_host : int; port_vm : int }
+type check_error = Duplicated_port of int | Missing_file of string
 
 type vm = {
   base_dir : string; (* this is where we will look for disks for example *)
@@ -15,6 +16,12 @@ type vm = {
 
 module IntSet = Set.Make (Int)
 
+let vm_files_dir (vm : vm) : string =
+  (* TODO: HOME is already checked in main, we can probably pass it as a parameter from main *)
+  match Sys.getenv_opt "HOME" with
+  | Some d -> Filename.concat d vm.base_dir
+  | None -> failwith "HOME doesn't exist"
+
 (* CHECKS *)
 let duplicate_ints (lst : int list) : int list =
   let rec loop acc = function
@@ -24,14 +31,28 @@ let duplicate_ints (lst : int list) : int list =
   in
   loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
 
-let check_host_ports (vms : vm list) : (unit, int list) result =
-  let ports =
-    List.map (fun vm -> vm.redirections) vms
-    |> List.concat
-    |> List.map (fun r -> r.port_host)
-  in
-  let dup = duplicate_ints ports in
-  if List.is_empty dup then Ok () else Error dup
+let check_host_ports (vms : vm list) : check_error list =
+  List.map (fun vm -> vm.redirections) vms
+  |> List.concat
+  |> List.map (fun r -> r.port_host)
+  |> duplicate_ints
+  |> List.map (fun dup_port -> Duplicated_port dup_port)
+
+let check_files_path (vms : vm list) : check_error list =
+  (* First check the disks *)
+  vms
+  |> List.map (fun vm ->
+      let vm_dir = vm_files_dir vm in
+      (* We check that paths to NVRAM and disks are accessible *)
+      Filename.concat vm_dir vm.uefi_vars
+      :: List.map (fun d -> Filename.concat vm_dir d.path) vm.disks)
+  |> List.concat
+  |> List.filter (fun f -> not (Sys.file_exists f))
+  |> List.map (fun f -> Missing_file f)
+
+let sanity_checks (vms : vm list) : (unit, check_error list) result =
+  let errors = check_host_ports vms @ check_files_path vms in
+  if errors = [] then Ok () else Error errors
 
 (* HELPERS *)
 let qcow2 path = { ty = Qcow2; path }
@@ -78,11 +99,7 @@ let redirections_to_args redirections : string list =
   [ "-netdev"; String.concat "," ("user,id=net0" :: r) ]
 
 let vm_to_args (vm : vm) : string list =
-  let vm_dir =
-    match Sys.getenv_opt "HOME" with
-    | Some d -> Filename.concat d vm.base_dir
-    | None -> failwith "HOME doesn't exist"
-  in
+  let vm_dir = vm_files_dir vm in
   (* TODO: probably pass the OVMF path as a VM field *)
   [
     "-name";

@@ -1,5 +1,6 @@
-type disk
 type redirection
+type check_error = Duplicated_port of int | Missing_file of string
+type disk
 type vm
 
 val qcow2 : string -> disk
@@ -18,7 +19,7 @@ val make :
   string ->
   vm
 
-val check_host_ports : vm list -> (unit, int list) result
+val sanity_checks : vm list -> (unit, check_error list) result
 val vm_to_args : vm -> string list
 
 (* exposed for easy testing, remove it once well tested *)

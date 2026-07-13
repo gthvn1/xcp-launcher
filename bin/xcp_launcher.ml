@@ -22,11 +22,16 @@ let () =
   if Option.is_none (Sys.getenv_opt "HOME") then (
     Printf.eprintf "$HOME is not set, cannot check disks and other files";
     exit 1);
-  match Vm.check_host_ports Conf.vms with
+  match Vm.sanity_checks Conf.vms with
   | Ok () ->
       Eio_main.run (fun env ->
           main (Eio.Stdenv.stdout env) (Eio.Stdenv.process_mgr env))
   | Error lst ->
-      Printf.eprintf "Following ports host are duplicated: %s\n"
-        (String.concat " " (List.map string_of_int lst));
+      List.iter
+        (fun e ->
+          match e with
+          | Vm.Duplicated_port p ->
+              Printf.eprintf "Host port %d is duplicated\n" p
+          | Vm.Missing_file f -> Printf.eprintf "File %s not found\n" f)
+        lst;
       exit 1
