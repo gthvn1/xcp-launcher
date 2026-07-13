@@ -1,4 +1,4 @@
-let base_dir = "qemu_env/xcpng/8.3"
+let base_dir = "qemu-env/xcpng/8.3"
 
 let vms : Vm.vm list =
   [
