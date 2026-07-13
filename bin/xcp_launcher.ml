@@ -18,7 +18,7 @@ let main out proc_mgr =
   |> Eio.Fiber.all
 
 let () =
-  (* TODO: group checks, and pass vm_dir maybe *)
+  (* TODO: maybe pass vm_dir because it is recomputed in sanity checks *)
   if Option.is_none (Sys.getenv_opt "HOME") then (
     Printf.eprintf "$HOME is not set, cannot check disks and other files";
     exit 1);

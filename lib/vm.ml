@@ -99,6 +99,8 @@ let sanity_checks (vms : vm list) : (unit, check_error list) result =
   if errors = [] then Ok () else Error errors
 
 (* EXPOSED *)
+let qmp_socket_path (vm : vm) : string = "/tmp/qmp-sock-" ^ vm.name
+
 let vm_to_args (vm : vm) : string list =
   let vm_dir = vm_files_dir vm in
   (* TODO: probably pass the OVMF path as a VM field *)
@@ -122,6 +124,8 @@ let vm_to_args (vm : vm) : string list =
     "virtio-scsi-pci,id=scsi";
     "-device";
     "e1000,netdev=net0";
+    "-qmp";
+    "unix:" ^ qmp_socket_path vm ^ ",server,wait=off";
     "-boot";
     "c";
   ]

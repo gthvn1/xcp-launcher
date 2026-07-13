@@ -20,6 +20,7 @@ val make :
   vm
 
 val sanity_checks : vm list -> (unit, check_error list) result
+val qmp_socket_path : vm -> string
 val vm_to_args : vm -> string list
 
 (* exposed for easy testing, remove it once well tested *)
