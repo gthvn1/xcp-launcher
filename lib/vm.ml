@@ -52,7 +52,7 @@ let disks_to_args (disks : disk list) (vm_dir : string) : string list =
         "file=" ^ disk_path ^ ",if=none,format=" ^ disk_ty_to_string disk.ty
         ^ ",id=hd" ^ disk_id;
         "-device";
-        "scsi-hd,drive=hd" ^ disk_id;
+        "virtio-blk-pci,drive=hd" ^ disk_id;
       ])
     disks
   |> List.concat
@@ -121,9 +121,7 @@ let vm_to_args (vm : vm) : string list =
     "-drive";
     "if=pflash,format=raw,file=" ^ vm_dir ^ "/" ^ vm.uefi_vars;
     "-device";
-    "virtio-scsi-pci,id=scsi";
-    "-device";
-    "e1000,netdev=net0";
+    "virtio-net-pci,netdev=net0";
     "-qmp";
     "unix:" ^ qmp_socket_path vm ^ ",server,wait=off";
     "-boot";
