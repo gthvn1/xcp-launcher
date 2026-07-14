@@ -4,5 +4,4 @@ let () =
     exit 1);
   let sock_path = Sys.argv.(1) in
 
-  Eio_main.run (fun env ->
-      Xcp.Qmp.connect (Eio.Stdenv.net env) (Eio.Stdenv.stdout env) sock_path)
+  Eio_main.run (fun env -> Xcp.Qmp.connect (Eio.Stdenv.net env) sock_path)
