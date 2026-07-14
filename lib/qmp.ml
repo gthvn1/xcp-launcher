@@ -1,19 +1,21 @@
-let connect net sock_path =
-  let addr = `Unix sock_path in
-  let get_capabilities = {|{"execute":"qmp_capabilities"}|} ^ "\n" in
-  let query_status = {|{"execute":"query-status"}|} ^ "\n" in
+type 'flow t = { flow : 'flow; buf : Eio.Buf_read.t }
 
-  Eio.Switch.run @@ fun sw ->
-  let flow = Eio.Net.connect ~sw net addr in
-  let buf = Eio.Buf_read.of_flow ~max_size:512 flow in
+let send_command (params : 'flow t) (cmd : string) : string =
+  Eio.Flow.copy_string cmd params.flow;
+  Eio.Buf_read.line params.buf
 
-  Eio.traceln "First we need to read the greeting from Qemu";
-  Eio.traceln "Got: %s\n" (Eio.Buf_read.line buf);
+let with_session net path f =
+  let addr = `Unix path in
+  Eio.Switch.run (fun sw ->
+      let flow = Eio.Net.connect ~sw net addr in
+      let buf = Eio.Buf_read.of_flow ~max_size:512 flow in
+      let params = { flow; buf } in
+      let get_capabilities = {|{"execute":"qmp_capabilities"}|} ^ "\n" in
 
-  Eio.traceln "now we can send the get_capabilities";
-  Eio.Flow.copy_string get_capabilities flow;
-  Eio.traceln "Got: %s\n" (Eio.Buf_read.line buf);
+      Eio.traceln "First we need to read the greeting from Qemu";
+      Eio.traceln "Got: %s\n" (Eio.Buf_read.line params.buf);
 
-  Eio.traceln "and query status of the VM";
-  Eio.Flow.copy_string query_status flow;
-  Eio.traceln "Got: %s\n" (Eio.Buf_read.line buf)
+      Eio.traceln "now we can send the get_capabilities";
+      ignore @@ send_command params get_capabilities;
+
+      f params)
