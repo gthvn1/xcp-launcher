@@ -1,13 +1,13 @@
-type network = User | Tap
-type redirection
+type network = User | Tap [@@deriving sexp]
+type redirection [@@deriving sexp]
 
 type check_error =
   | Duplicated_port of int
   | Missing_file of string
   | Tap_not_found of string
 
-type disk
-type vm
+type disk [@@deriving sexp]
+type vm [@@deriving sexp]
 
 val qcow2 : string -> disk
 val raw : string -> disk

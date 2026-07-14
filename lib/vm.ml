@@ -1,8 +1,12 @@
-type network = User | Tap
-type disk_ty = Qcow2 | Raw
-type disk = { ty : disk_ty; path : string }
-type redir_ty = Udp | Tcp
+open Sexplib.Conv
+
+type network = User | Tap [@@deriving sexp]
+type disk_ty = Qcow2 | Raw [@@deriving sexp]
+type disk = { ty : disk_ty; path : string } [@@deriving sexp]
+type redir_ty = Udp | Tcp [@@deriving sexp]
+
 type redirection = { ty : redir_ty; port_host : int; port_vm : int }
+[@@deriving sexp]
 
 type check_error =
   | Duplicated_port of int
@@ -19,6 +23,7 @@ type vm = {
   disks : disk list;
   redirections : redirection list;
 }
+[@@deriving sexp]
 
 module IntSet = Set.Make (Int)
 

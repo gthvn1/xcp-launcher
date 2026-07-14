@@ -1,3 +1,3 @@
 (executables
- (names xcp_launcher qmp_test)
- (libraries xcp eio_main))
+ (names xcp_launcher qmp_test read_sexpr)
+ (libraries xcp eio_main sexplib))
