@@ -33,10 +33,16 @@ Once a VM is running, you can talk to it over QMP:
 
 ```shell
 ❯ ./_build/default/bin/qmp_test.exe /tmp/qmp-sock-vm1
-First we need to read the greeting from Qemu
-Got: {"QMP": {"version": {"qemu": {"micro": 11, "minor": 0, "major": 10}, "package": "Debian 1:10.0.11+ds-0+deb13u1"}, "capabilities": ["oob"]}}
-now we can send the get_capabilities
-Got: {"return": {"status": "running", "running": true}}
++First we need to read the greeting from Qemu
++Got: {"QMP": {"version": {"qemu": {"micro": 11, "minor": 0, "major": 10}, "package": "Debian 1:10.0.11+ds-0+deb13u1"}, "capabilities": ["oob"]}}
++
++Now we can send the get_capabilities
++Got: {"return": {}}
++
++Ready to run any command...
++
++Got: {"return": {"status": "running", "running": true}}
++
 ```
 
 ## Features

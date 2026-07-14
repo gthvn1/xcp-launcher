@@ -15,7 +15,8 @@ let with_session net path f =
       Eio.traceln "First we need to read the greeting from Qemu";
       Eio.traceln "Got: %s\n" (Eio.Buf_read.line params.buf);
 
-      Eio.traceln "now we can send the get_capabilities";
-      ignore @@ send_command params get_capabilities;
+      Eio.traceln "Now we can send the get_capabilities";
+      Eio.traceln "Got: %s\n" (send_command params get_capabilities);
 
+      Eio.traceln "Ready to run any command...\n";
       f params)
