@@ -32,6 +32,7 @@ let () =
           match e with
           | Vm.Duplicated_port p ->
               Printf.eprintf "Host port %d is duplicated\n" p
-          | Vm.Missing_file f -> Printf.eprintf "File %s not found\n" f)
+          | Vm.Missing_file f -> Printf.eprintf "File %s not found\n" f
+          | Vm.Tap_not_found t -> Printf.eprintf "Tap %s not found\n" t)
         lst;
       exit 1

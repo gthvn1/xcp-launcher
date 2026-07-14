@@ -1,8 +1,13 @@
+type network = User | Tap
 type disk_ty = Qcow2 | Raw
 type disk = { ty : disk_ty; path : string }
 type redir_ty = Udp | Tcp
 type redirection = { ty : redir_ty; port_host : int; port_vm : int }
-type check_error = Duplicated_port of int | Missing_file of string
+
+type check_error =
+  | Duplicated_port of int
+  | Missing_file of string
+  | Tap_not_found of string
 
 type vm = {
   base_dir : string; (* this is where we will look for disks for example *)
@@ -10,6 +15,7 @@ type vm = {
   memory : int;
   cores : int;
   uefi_vars : string;
+  network : network;
   disks : disk list;
   redirections : redirection list;
 }
@@ -35,9 +41,9 @@ let name vm = vm.name
    at the end. Since name fills that role, callers don't need the awkward
    trailing ()
   *)
-let make ?(memory = 4096) ?(cores = 2) ?(disks = []) ?(redirections = [])
-    ~base_dir ~uefi_vars name =
-  { base_dir; name; memory; cores; uefi_vars; disks; redirections }
+let make ?(memory = 4096) ?(cores = 2) ?(disks = []) ?(network = User)
+    ?(redirections = []) ~base_dir ~uefi_vars name =
+  { base_dir; name; memory; cores; uefi_vars; network; disks; redirections }
 
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
 let redir_ty_to_string = function Udp -> "udp" | Tcp -> "tcp"
@@ -66,6 +72,17 @@ let redirections_to_args redirections : string list =
   let r = List.map redirection_to_hostfwd redirections in
   [ "-netdev"; String.concat "," ("user,id=net0" :: r) ]
 
+let network_to_args (vm : vm) : string list =
+  [ "-device"; "virtio-net-pci,netdev=net0" ]
+  @
+  match vm.network with
+  | User -> redirections_to_args vm.redirections
+  | Tap ->
+      [
+        "-netdev";
+        "tap,id=net0,ifname=tap-" ^ vm.name ^ ",script=no,downscript=no";
+      ]
+
 (* CHECKS *)
 let duplicate_ints (lst : int list) : int list =
   let rec loop acc = function
@@ -74,6 +91,13 @@ let duplicate_ints (lst : int list) : int list =
         if a = b then loop (IntSet.add a acc) xs else loop acc (b :: xs)
   in
   loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
+
+let check_taps (vms : vm list) : check_error list =
+  vms
+  |> List.filter_map (fun vm ->
+      match vm.network with
+      | Tap -> Some (Tap_not_found ("need to check tap-" ^ vm.name))
+      | User -> None)
 
 let check_host_ports (vms : vm list) : check_error list =
   List.map (fun vm -> vm.redirections) vms
@@ -95,7 +119,7 @@ let check_files_path (vms : vm list) : check_error list =
   |> List.map (fun f -> Missing_file f)
 
 let sanity_checks (vms : vm list) : (unit, check_error list) result =
-  let errors = check_host_ports vms @ check_files_path vms in
+  let errors = check_taps vms @ check_host_ports vms @ check_files_path vms in
   if errors = [] then Ok () else Error errors
 
 (* EXPOSED *)
@@ -120,12 +144,10 @@ let vm_to_args (vm : vm) : string list =
     "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd";
     "-drive";
     "if=pflash,format=raw,file=" ^ vm_dir ^ "/" ^ vm.uefi_vars;
-    "-device";
-    "virtio-net-pci,netdev=net0";
     "-qmp";
     "unix:" ^ qmp_socket_path vm ^ ",server,wait=off";
     "-boot";
     "c";
   ]
   @ disks_to_args vm.disks vm_dir
-  @ redirections_to_args vm.redirections
+  @ network_to_args vm

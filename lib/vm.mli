@@ -1,5 +1,11 @@
+type network = User | Tap
 type redirection
-type check_error = Duplicated_port of int | Missing_file of string
+
+type check_error =
+  | Duplicated_port of int
+  | Missing_file of string
+  | Tap_not_found of string
+
 type disk
 type vm
 
@@ -13,6 +19,7 @@ val make :
   ?memory:int ->
   ?cores:int ->
   ?disks:disk list ->
+  ?network:network ->
   ?redirections:redirection list ->
   base_dir:string ->
   uefi_vars:string ->
