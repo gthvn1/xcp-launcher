@@ -33,6 +33,12 @@ let () =
           | Vm.Duplicated_port p ->
               Printf.eprintf "Host port %d is duplicated\n" p
           | Vm.Missing_file f -> Printf.eprintf "File %s not found\n" f
-          | Vm.Tap_not_found t -> Printf.eprintf "Tap %s not found\n" t)
+          | Vm.Tap_not_found t ->
+              Printf.eprintf
+                "Interface %s missing. Create it with:\n\
+                \  sudo ip tuntap add %s mode tap user $(whoami)\n\
+                \  sudo ip link set %s master virbr0\n\
+                \  sudo ip link set %s up\n"
+                t t t t)
         lst;
       exit 1

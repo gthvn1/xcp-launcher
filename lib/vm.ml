@@ -72,6 +72,8 @@ let redirections_to_args redirections : string list =
   let r = List.map redirection_to_hostfwd redirections in
   [ "-netdev"; String.concat "," ("user,id=net0" :: r) ]
 
+(* TODO: support more than one interface in TAP mode. Currently we are using
+ tap-<vm.name> *)
 let network_to_args (vm : vm) : string list =
   [ "-device"; "virtio-net-pci,netdev=net0" ]
   @
@@ -96,7 +98,9 @@ let check_taps (vms : vm list) : check_error list =
   vms
   |> List.filter_map (fun vm ->
       match vm.network with
-      | Tap -> Some (Tap_not_found ("need to check tap-" ^ vm.name))
+      | Tap ->
+          if Sys.file_exists ("/sys/class/net/tap-" ^ vm.name) then None
+          else Some (Tap_not_found ("tap-" ^ vm.name))
       | User -> None)
 
 let check_host_ports (vms : vm list) : check_error list =
