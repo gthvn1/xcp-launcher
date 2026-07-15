@@ -1,11 +1,6 @@
 type network = User | Tap [@@deriving sexp]
 type redirection [@@deriving sexp]
-
-type check_error =
-  | Duplicated_port of int
-  | Missing_file of string
-  | Tap_not_found of string
-
+type check_error = Missing_file of string | Tap_not_found of string
 type disk [@@deriving sexp]
 type t [@@deriving sexp]
 

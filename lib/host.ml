@@ -8,10 +8,7 @@ type redir_ty = Udp | Tcp [@@deriving sexp]
 type redirection = { ty : redir_ty; port_host : int; port_guest : int }
 [@@deriving sexp]
 
-type check_error =
-  | Duplicated_port of int
-  | Missing_file of string
-  | Tap_not_found of string
+type check_error = Missing_file of string | Tap_not_found of string
 
 type t = {
   base_dir : string; (* this is where we will look for disks for example *)
@@ -64,7 +61,8 @@ let make ?(description = "no description") ?(memory = 4096) ?(cores = 2)
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
 let redir_ty_to_string = function Udp -> "udp" | Tcp -> "tcp"
 
-let disks_to_args (disks : disk list) (host_dir : string) : string list =
+let disks_to_args host : string list =
+  let host_dir = files_dir host in
   List.mapi
     (fun id disk ->
       let disk_id = string_of_int id in
@@ -76,7 +74,7 @@ let disks_to_args (disks : disk list) (host_dir : string) : string list =
         "-device";
         "virtio-blk-pci,drive=hd" ^ disk_id;
       ])
-    disks
+    host.disks
   |> List.concat
 
 let redirection_to_hostfwd redirection : string =
@@ -149,5 +147,4 @@ let to_args host : string list =
     "-boot";
     "c";
   ]
-  @ disks_to_args host.disks host_dir
-  @ network_to_args host
+  @ disks_to_args host @ network_to_args host

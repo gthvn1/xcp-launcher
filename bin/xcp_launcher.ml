@@ -20,10 +20,6 @@ let main out proc_mgr =
   |> Eio.Fiber.all
 
 let () =
-  (* TODO: maybe pass vm_dir because it is recomputed in sanity checks *)
-  if Option.is_none (Sys.getenv_opt "HOME") then (
-    Printf.eprintf "$HOME is not set, cannot check disks and other files";
-    exit 1);
   match Pool.sanity_checks Conf.hosts with
   | Ok () ->
       Eio_main.run (fun env ->
@@ -32,10 +28,11 @@ let () =
       List.iter
         (fun e ->
           match e with
-          | Host.Duplicated_port p ->
+          | Pool.Duplicated_port p ->
               Printf.eprintf "Host port %d is duplicated\n" p
-          | Host.Missing_file f -> Printf.eprintf "File %s not found\n" f
-          | Host.Tap_not_found t ->
+          | Pool.Host_error (Host.Missing_file f) ->
+              Printf.eprintf "File %s not found\n" f
+          | Pool.Host_error (Host.Tap_not_found t) ->
               Printf.eprintf
                 "Interface %s missing. Create it with:\n\
                 \  sudo ip tuntap add %s mode tap user $(whoami)\n\

@@ -3,6 +3,7 @@ open Sexplib.Conv
 
 type running_host = { host : Host.t; pid : int; qmp_socket : string }
 type pool = Host.t list [@@deriving sexp]
+type check_error = Duplicated_port of int | Host_error of Host.check_error
 
 let state : running_host list ref = ref []
 let pool_cache : pool option ref = ref None
@@ -29,7 +30,7 @@ let start_host (name : string) =
   if Option.is_none !pool_cache then failwith msg_load_pool;
   let pool = Option.get !pool_cache in
   if host_is_running name then failwith "Host is already running";
-  (* Check of the VM is in the pool *)
+  (* Check of the host is in the pool *)
   match List.filter (fun h -> Host.name h = name) pool with
   | [] -> failwith ("Host " ^ name ^ " not found in the pool")
   | [ host ] ->
@@ -52,18 +53,18 @@ let duplicate_ints (lst : int list) : int list =
   in
   loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
 
-let check_all_files pool : Host.check_error list =
-  List.concat_map Host.check_files pool
+let check_all_files pool : check_error list =
+  List.concat_map Host.check_files pool |> List.map (fun e -> Host_error e)
 
-let check_all_ports pool : Host.check_error list =
+let check_all_ports pool : check_error list =
   List.concat_map Host.get_ports pool
   |> duplicate_ints
-  |> List.map (fun dup_port -> Host.Duplicated_port dup_port)
+  |> List.map (fun dup_port -> Duplicated_port dup_port)
 
-let check_all_taps pool : Host.check_error list =
-  List.concat_map Host.check_tap pool
+let check_all_taps pool : check_error list =
+  List.concat_map Host.check_tap pool |> List.map (fun e -> Host_error e)
 
-let sanity_checks pool : (unit, Host.check_error list) result =
+let sanity_checks pool : (unit, check_error list) result =
   let errors =
     check_all_taps pool @ check_all_ports pool @ check_all_files pool
   in
