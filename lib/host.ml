@@ -26,8 +26,6 @@ type t = {
 }
 [@@deriving sexp]
 
-module IntSet = Set.Make (Int)
-
 let files_dir (host : t) : string =
   (* TODO: HOME is already checked in main, we can probably pass it as a parameter from main *)
   match Sys.getenv_opt "HOME" with
@@ -104,13 +102,6 @@ let network_to_args host : string list =
       ]
 
 (* CHECKS *)
-let duplicate_ints (lst : int list) : int list =
-  let rec loop acc = function
-    | [] | [ _ ] -> acc
-    | a :: b :: xs ->
-        if a = b then loop (IntSet.add a acc) xs else loop acc (b :: xs)
-  in
-  loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
 
 (* Currently we only have one tap *)
 let check_tap host : check_error list =
@@ -120,16 +111,8 @@ let check_tap host : check_error list =
       if Sys.file_exists ("/sys/class/net/tap-" ^ host.name) then []
       else [ Tap_not_found ("tap-" ^ host.name) ]
 
-let check_all_taps (hosts : t list) : check_error list =
-  List.concat_map check_tap hosts
-
 let get_ports host : int list =
   List.map (fun r -> r.port_host) host.redirections
-
-let check_all_ports (hosts : t list) : check_error list =
-  List.concat_map get_ports hosts
-  |> duplicate_ints
-  |> List.map (fun dup_port -> Duplicated_port dup_port)
 
 let check_files host : check_error list =
   let host_dir = files_dir host in
@@ -138,15 +121,6 @@ let check_files host : check_error list =
   :: List.map (fun d -> Filename.concat host_dir d.path) host.disks
   |> List.filter_map (fun f ->
       if Sys.file_exists f then None else Some (Missing_file f))
-
-let check_all_files (hosts : t list) : check_error list =
-  List.concat_map check_files hosts
-
-let sanity_checks (hosts : t list) : (unit, check_error list) result =
-  let errors =
-    check_all_taps hosts @ check_all_ports hosts @ check_all_files hosts
-  in
-  if errors = [] then Ok () else Error errors
 
 (* EXPOSED *)
 let qmp_socket_path host : string = "/tmp/qmp-sock-" ^ host.name

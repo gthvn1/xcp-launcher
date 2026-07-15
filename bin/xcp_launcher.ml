@@ -1,4 +1,5 @@
 module Host = Xcp.Host
+module Pool = Xcp.Pool
 module Conf = Xcp.Conf
 
 let qemu_system = "qemu-system-x86_64"
@@ -23,7 +24,7 @@ let () =
   if Option.is_none (Sys.getenv_opt "HOME") then (
     Printf.eprintf "$HOME is not set, cannot check disks and other files";
     exit 1);
-  match Host.sanity_checks Conf.hosts with
+  match Pool.sanity_checks Conf.hosts with
   | Ok () ->
       Eio_main.run (fun env ->
           main (Eio.Stdenv.stdout env) (Eio.Stdenv.process_mgr env))

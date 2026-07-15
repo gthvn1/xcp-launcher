@@ -40,3 +40,31 @@ let start_host (name : string) =
       let pid = create_process cmd args stdin stdout stderr in
       state := { host; pid; qmp_socket = Host.qmp_socket_path host } :: !state
   | _ -> failwith ("There is more than one host named " ^ name)
+
+(* CHECKS *)
+module IntSet = Set.Make (Int)
+
+let duplicate_ints (lst : int list) : int list =
+  let rec loop acc = function
+    | [] | [ _ ] -> acc
+    | a :: b :: xs ->
+        if a = b then loop (IntSet.add a acc) xs else loop acc (b :: xs)
+  in
+  loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
+
+let check_all_files pool : Host.check_error list =
+  List.concat_map Host.check_files pool
+
+let check_all_ports pool : Host.check_error list =
+  List.concat_map Host.get_ports pool
+  |> duplicate_ints
+  |> List.map (fun dup_port -> Host.Duplicated_port dup_port)
+
+let check_all_taps pool : Host.check_error list =
+  List.concat_map Host.check_tap pool
+
+let sanity_checks pool : (unit, Host.check_error list) result =
+  let errors =
+    check_all_taps pool @ check_all_ports pool @ check_all_files pool
+  in
+  if errors = [] then Ok () else Error errors
