@@ -15,12 +15,13 @@ type check_error =
 
 type vm = {
   base_dir : string; (* this is where we will look for disks for example *)
+  description : string;
   name : string;
   memory : int;
   cores : int;
   uefi_vars : string;
-  network : network;
   disks : disk list;
+  network : network;
   redirections : redirection list;
 }
 [@@deriving sexp]
@@ -39,6 +40,7 @@ let raw path = { ty = Raw; path }
 let tcp ~host ~guest = { ty = Tcp; port_host = host; port_vm = guest }
 let udp ~host ~guest = { ty = Udp; port_host = host; port_vm = guest }
 let name vm = vm.name
+let desc vm = vm.description
 
 (* The trailing string is the VM name. Making the name the final positional
    argument is deliberate: OCaml only "commits" optional arguments when a
@@ -46,9 +48,19 @@ let name vm = vm.name
    at the end. Since name fills that role, callers don't need the awkward
    trailing ()
   *)
-let make ?(memory = 4096) ?(cores = 2) ?(disks = []) ?(network = User)
-    ?(redirections = []) ~base_dir ~uefi_vars name =
-  { base_dir; name; memory; cores; uefi_vars; network; disks; redirections }
+let make ?(description = "") ?(memory = 4096) ?(cores = 2) ?(disks = [])
+    ?(network = User) ?(redirections = []) ~base_dir ~uefi_vars name =
+  {
+    base_dir;
+    description;
+    name;
+    memory;
+    cores;
+    uefi_vars;
+    disks;
+    network;
+    redirections;
+  }
 
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
 let redir_ty_to_string = function Udp -> "udp" | Tcp -> "tcp"

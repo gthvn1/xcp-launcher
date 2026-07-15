@@ -14,8 +14,10 @@ val raw : string -> disk
 val tcp : host:int -> guest:int -> redirection
 val udp : host:int -> guest:int -> redirection
 val name : vm -> string
+val desc : vm -> string
 
 val make :
+  ?description:string ->
   ?memory:int ->
   ?cores:int ->
   ?disks:disk list ->
