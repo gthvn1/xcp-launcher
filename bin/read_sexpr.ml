@@ -1,3 +1,3 @@
 let () =
   print_endline
-  @@ Sexplib.Sexp.to_string_hum (Xcp.Vm.sexp_of_vm (List.hd Xcp.Conf.vms))
+  @@ Sexplib.Sexp.to_string_hum (Xcp.Host.sexp_of_t (List.hd Xcp.Conf.hosts))

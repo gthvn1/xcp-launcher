@@ -13,7 +13,7 @@ type check_error =
   | Missing_file of string
   | Tap_not_found of string
 
-type vm = {
+type t = {
   base_dir : string; (* this is where we will look for disks for example *)
   description : string;
   name : string;
@@ -28,10 +28,10 @@ type vm = {
 
 module IntSet = Set.Make (Int)
 
-let vm_files_dir (vm : vm) : string =
+let files_dir (host : t) : string =
   (* TODO: HOME is already checked in main, we can probably pass it as a parameter from main *)
   match Sys.getenv_opt "HOME" with
-  | Some d -> Filename.concat d vm.base_dir
+  | Some d -> Filename.concat d host.base_dir
   | None -> failwith "HOME doesn't exist"
 
 (* HELPERS *)
@@ -39,17 +39,18 @@ let qcow2 path = { ty = Qcow2; path }
 let raw path = { ty = Raw; path }
 let tcp ~host ~guest = { ty = Tcp; port_host = host; port_vm = guest }
 let udp ~host ~guest = { ty = Udp; port_host = host; port_vm = guest }
-let name vm = vm.name
-let desc vm = vm.description
+let name host = host.name
+let desc host = host.description
 
-(* The trailing string is the VM name. Making the name the final positional
+(* The trailing string is the Host name. Making the name the final positional
    argument is deliberate: OCaml only "commits" optional arguments when a
    non-optional argument is applied after them, so you need something non-optional
    at the end. Since name fills that role, callers don't need the awkward
    trailing ()
   *)
-let make ?(description = "") ?(memory = 4096) ?(cores = 2) ?(disks = [])
-    ?(network = User) ?(redirections = []) ~base_dir ~uefi_vars name =
+let make ?(description = "no description") ?(memory = 4096) ?(cores = 2)
+    ?(disks = []) ?(network = User) ?(redirections = []) ~base_dir ~uefi_vars
+    name =
   {
     base_dir;
     description;
@@ -91,15 +92,15 @@ let redirections_to_args redirections : string list =
 
 (* TODO: support more than one interface in TAP mode. Currently we are using
  tap-<vm.name> *)
-let network_to_args (vm : vm) : string list =
+let network_to_args host : string list =
   [ "-device"; "virtio-net-pci,netdev=net0" ]
   @
-  match vm.network with
-  | User -> redirections_to_args vm.redirections
+  match host.network with
+  | User -> redirections_to_args host.redirections
   | Tap ->
       [
         "-netdev";
-        "tap,id=net0,ifname=tap-" ^ vm.name ^ ",script=no,downscript=no";
+        "tap,id=net0,ifname=tap-" ^ host.name ^ ",script=no,downscript=no";
       ]
 
 (* CHECKS *)
@@ -111,52 +112,54 @@ let duplicate_ints (lst : int list) : int list =
   in
   loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
 
-let check_taps (vms : vm list) : check_error list =
-  vms
-  |> List.filter_map (fun vm ->
-      match vm.network with
+let check_taps (hosts : t list) : check_error list =
+  hosts
+  |> List.filter_map (fun h ->
+      match h.network with
       | Tap ->
-          if Sys.file_exists ("/sys/class/net/tap-" ^ vm.name) then None
-          else Some (Tap_not_found ("tap-" ^ vm.name))
+          if Sys.file_exists ("/sys/class/net/tap-" ^ h.name) then None
+          else Some (Tap_not_found ("tap-" ^ h.name))
       | User -> None)
 
-let check_host_ports (vms : vm list) : check_error list =
-  List.map (fun vm -> vm.redirections) vms
+let check_host_ports (hosts : t list) : check_error list =
+  List.map (fun h -> h.redirections) hosts
   |> List.concat
   |> List.map (fun r -> r.port_host)
   |> duplicate_ints
   |> List.map (fun dup_port -> Duplicated_port dup_port)
 
-let check_files_path (vms : vm list) : check_error list =
+let check_files_path (hosts : t list) : check_error list =
   (* First check the disks *)
-  vms
-  |> List.map (fun vm ->
-      let vm_dir = vm_files_dir vm in
+  hosts
+  |> List.map (fun h ->
+      let host_dir = files_dir h in
       (* We check that paths to NVRAM and disks are accessible *)
-      Filename.concat vm_dir vm.uefi_vars
-      :: List.map (fun d -> Filename.concat vm_dir d.path) vm.disks)
+      Filename.concat host_dir h.uefi_vars
+      :: List.map (fun d -> Filename.concat host_dir d.path) h.disks)
   |> List.concat
   |> List.filter (fun f -> not (Sys.file_exists f))
   |> List.map (fun f -> Missing_file f)
 
-let sanity_checks (vms : vm list) : (unit, check_error list) result =
-  let errors = check_taps vms @ check_host_ports vms @ check_files_path vms in
+let sanity_checks (hosts : t list) : (unit, check_error list) result =
+  let errors =
+    check_taps hosts @ check_host_ports hosts @ check_files_path hosts
+  in
   if errors = [] then Ok () else Error errors
 
 (* EXPOSED *)
-let qmp_socket_path (vm : vm) : string = "/tmp/qmp-sock-" ^ vm.name
+let qmp_socket_path host : string = "/tmp/qmp-sock-" ^ host.name
 
-let vm_to_args (vm : vm) : string list =
-  let vm_dir = vm_files_dir vm in
+let host_to_args host : string list =
+  let host_dir = files_dir host in
   (* TODO: probably pass the OVMF path as a VM field *)
   [
     "-name";
-    vm.name;
+    host.name;
     "-enable-kvm";
     "-m";
-    string_of_int vm.memory;
+    string_of_int host.memory;
     "-smp";
-    string_of_int vm.cores;
+    string_of_int host.cores;
     "-vga";
     "virtio";
     "-cpu";
@@ -164,11 +167,11 @@ let vm_to_args (vm : vm) : string list =
     "-drive";
     "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd";
     "-drive";
-    "if=pflash,format=raw,file=" ^ vm_dir ^ "/" ^ vm.uefi_vars;
+    "if=pflash,format=raw,file=" ^ host_dir ^ "/" ^ host.uefi_vars;
     "-qmp";
-    "unix:" ^ qmp_socket_path vm ^ ",server,wait=off";
+    "unix:" ^ qmp_socket_path host ^ ",server,wait=off";
     "-boot";
     "c";
   ]
-  @ disks_to_args vm.disks vm_dir
-  @ network_to_args vm
+  @ disks_to_args host.disks host_dir
+  @ network_to_args host
