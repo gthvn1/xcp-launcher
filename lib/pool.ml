@@ -2,26 +2,23 @@
 open Sexplib.Conv
 
 type running_host = { host : Host.t; pid : int; qmp_socket : string }
-type pool = Host.t list [@@deriving sexp]
+type t = Host.t list [@@deriving sexp]
 type check_error = Duplicated_port of int | Host_error of Host.check_error
 
+(* We are using global variable so we can run everything from utop that is
+   our REPL. *)
 let state : running_host list ref = ref []
-let pool_cache : pool option ref = ref None
+let pool_cache : t option ref = ref None
 let msg_load_pool = "You need to load a pool from s-exp or conf"
+let load_pool (pool : t) : unit = pool_cache := Some pool
 
-let load_pool_from_file (fname : string) =
-  pool_cache := Some (Sexplib.Sexp.load_sexp fname |> pool_of_sexp)
+let from_sexp_file (fname : string) =
+  load_pool (Sexplib.Sexp.load_sexp fname |> t_of_sexp)
 
-let load_pool_from_conf () = pool_cache := Some Conf.hosts
-
-let available_hosts () =
+let available_hosts () : string list =
   match !pool_cache with
-  | None -> print_endline msg_load_pool
-  | Some pool ->
-      List.iter
-        (fun (h : Host.t) ->
-          Printf.printf "%s: %s\n" (Host.name h) (Host.desc h))
-        pool
+  | None -> []
+  | Some pool -> List.map (fun (h : Host.t) -> Host.name h) pool
 
 let host_is_running (name : string) : bool =
   List.exists (fun rh -> Host.name rh.host = name) !state
@@ -64,7 +61,9 @@ let check_all_ports pool : check_error list =
 let check_all_taps pool : check_error list =
   List.concat_map Host.check_tap pool |> List.map (fun e -> Host_error e)
 
-let sanity_checks pool : (unit, check_error list) result =
+let sanity_checks unit : (unit, check_error list) result =
+  if Option.is_none !pool_cache then failwith msg_load_pool;
+  let pool = Option.get !pool_cache in
   let errors =
     check_all_taps pool @ check_all_ports pool @ check_all_files pool
   in

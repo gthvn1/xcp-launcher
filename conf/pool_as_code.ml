@@ -1,6 +1,9 @@
+module Host = Xcp.Host
+module Pool = Xcp.Pool
+
 let base_dir = "qemu-env/xcpng/8.3"
 
-let hosts : Host.t list =
+let my_pool : Pool.t =
   [
     Host.make "xcpng1" ~base_dir ~uefi_vars:"nvram_vm1.fd"
       ~disks:[ Host.qcow2 "disk_vm1.qcow2" ]

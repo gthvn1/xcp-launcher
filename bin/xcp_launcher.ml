@@ -1,6 +1,5 @@
 module Host = Xcp.Host
 module Pool = Xcp.Pool
-module Conf = Xcp.Conf
 
 let qemu_system = "qemu-system-x86_64"
 
@@ -16,11 +15,12 @@ let main out proc_mgr =
          out;
        try Eio.Process.run proc_mgr cmd
        with _ex -> Printf.eprintf "%s failed\n" (Host.name h))
-    Conf.hosts
+    Pool_as_code.my_pool
   |> Eio.Fiber.all
 
 let () =
-  match Pool.sanity_checks Conf.hosts with
+  Pool.from_sexp_file "conf/pool_example.sexp";
+  match Pool.sanity_checks () with
   | Ok () ->
       Eio_main.run (fun env ->
           main (Eio.Stdenv.stdout env) (Eio.Stdenv.process_mgr env))

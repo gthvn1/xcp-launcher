@@ -1,0 +1,3 @@
+(library
+ (name pool_as_code)
+ (libraries xcp))

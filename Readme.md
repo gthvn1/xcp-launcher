@@ -42,9 +42,9 @@ without a prefix.
 Typical session:
 
 ```ocaml
-Pool.load_pool_from_conf ();;      (* or load_pool_from_file "pool.sexp" *)
-Pool.available_hosts ();;          (* list hosts in the loaded pool *)
-Pool.start_host "host1";;          (* start one host in the background *)
+Pool.load_pool Pool_as_code.my_pool;;  (* or Pool.from_sexp_file "conf/pool_example.sexp" *)
+Pool.available_hosts ();;              (* list hosts in the loaded pool *)
+Pool.start_host "host1";;              (* start one host in the background *)
 ```
 
 The REPL session keeps its state between commands, so the list of running hosts
