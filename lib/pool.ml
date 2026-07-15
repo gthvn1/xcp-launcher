@@ -37,7 +37,6 @@ let start_host (name : string) =
       (* The first element of the array must be the command *)
       let args = Array.of_list (cmd :: Host.host_to_args host) in
       let open Unix in
-      let pid = Unix.create_process cmd args stdin stdout stderr in
-      let host = { host; pid; qmp_socket = Host.qmp_socket_path host } in
-      state := host :: !state
+      let pid = create_process cmd args stdin stdout stderr in
+      state := { host; pid; qmp_socket = Host.qmp_socket_path host } :: !state
   | _ -> failwith ("There is more than one host named " ^ name)

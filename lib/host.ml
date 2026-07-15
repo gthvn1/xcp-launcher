@@ -66,11 +66,11 @@ let make ?(description = "no description") ?(memory = 4096) ?(cores = 2)
 let disk_ty_to_string = function Qcow2 -> "qcow2" | Raw -> "raw"
 let redir_ty_to_string = function Udp -> "udp" | Tcp -> "tcp"
 
-let disks_to_args (disks : disk list) (vm_dir : string) : string list =
+let disks_to_args (disks : disk list) (host_dir : string) : string list =
   List.mapi
     (fun id disk ->
       let disk_id = string_of_int id in
-      let disk_path = Filename.concat vm_dir disk.path in
+      let disk_path = Filename.concat host_dir disk.path in
       [
         "-drive";
         "file=" ^ disk_path ^ ",if=none,format=" ^ disk_ty_to_string disk.ty
@@ -91,7 +91,7 @@ let redirections_to_args redirections : string list =
   [ "-netdev"; String.concat "," ("user,id=net0" :: r) ]
 
 (* TODO: support more than one interface in TAP mode. Currently we are using
- tap-<vm.name> *)
+ tap-<Host.name> *)
 let network_to_args host : string list =
   [ "-device"; "virtio-net-pci,netdev=net0" ]
   @

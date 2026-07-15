@@ -44,7 +44,7 @@ Typical session:
 ```ocaml
 Pool.load_pool_from_conf ();;      (* or load_pool_from_file "pool.sexp" *)
 Pool.available_hosts ();;          (* list hosts in the loaded pool *)
-Pool.start_host "vm1";;            (* start one host in the background *)
+Pool.start_host "host1";;          (* start one host in the background *)
 ```
 
 The REPL session keeps its state between commands, so the list of running hosts
@@ -66,7 +66,7 @@ Once a host is running, you can talk to it over its QMP Unix socket
 (`/tmp/qmp-sock-<name>`):
 
 ```shell
-./_build/default/bin/qmp_test.exe /tmp/qmp-sock-vm1
+./_build/default/bin/qmp_test.exe /tmp/qmp-sock-host1
 ```
 
 The client opens the socket, performs the QMP capabilities handshake, and can
