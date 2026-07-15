@@ -10,10 +10,10 @@ type check_error = Duplicated_port of int | Host_error of Host.check_error
 let state : running_host list ref = ref []
 let pool_cache : t option ref = ref None
 let msg_load_pool = "You need to load a pool from s-exp or conf"
-let load_pool (pool : t) : unit = pool_cache := Some pool
+let load (pool : t) : unit = pool_cache := Some pool
 
 let from_sexp_file (fname : string) =
-  load_pool (Sexplib.Sexp.load_sexp fname |> t_of_sexp)
+  load (Sexplib.Sexp.load_sexp fname |> t_of_sexp)
 
 let available_hosts () : string list =
   match !pool_cache with
@@ -61,7 +61,7 @@ let check_all_ports pool : check_error list =
 let check_all_taps pool : check_error list =
   List.concat_map Host.check_tap pool |> List.map (fun e -> Host_error e)
 
-let sanity_checks unit : (unit, check_error list) result =
+let sanity_checks () : (unit, check_error list) result =
   if Option.is_none !pool_cache then failwith msg_load_pool;
   let pool = Option.get !pool_cache in
   let errors =

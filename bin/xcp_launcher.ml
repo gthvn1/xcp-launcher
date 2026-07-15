@@ -1,3 +1,14 @@
+(* This launcher is our first experiment: it loads a hardcoded pool
+   (Pool_as_code.my_pool) and starts every host concurrently with Eio.
+
+   We originally reached for Eio because we wanted a REPL to interact with
+   hosts and their guest domains. It turned out that utop itself makes a great
+   REPL: with `dune utop`, we can load a pool (from code or from an s-expression
+   file) and drive it directly through the Pool functions.
+
+   So interactive management now happens in utop, and this file is kept only as
+   a record of that first Eio-based attempt. *)
+
 module Host = Xcp.Host
 module Pool = Xcp.Pool
 
@@ -19,7 +30,7 @@ let main out proc_mgr =
   |> Eio.Fiber.all
 
 let () =
-  Pool.from_sexp_file "conf/pool_example.sexp";
+  Pool.load Pool_as_code.my_pool;
   match Pool.sanity_checks () with
   | Ok () ->
       Eio_main.run (fun env ->
