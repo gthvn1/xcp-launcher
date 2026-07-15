@@ -10,4 +10,6 @@ let vms : Vm.vm list =
           Vm.tcp ~host:8443 ~guest:443;
           Vm.tcp ~host:8080 ~guest:80;
         ];
+    Vm.make "vm2" ~base_dir ~uefi_vars:"nvram_vm2.fd"
+      ~disks:[ Vm.qcow2 "disk_vm2.qcow2" ];
   ]
