@@ -1,72 +1,103 @@
 # XCP Launcher
 
-A small tool to start XCP-ng virtual machines from a typed configuration.
+A small tool to start and manage a pool of XCP-ng hosts, each running as a
+QEMU virtual machine, from a typed OCaml configuration.
 
-Instead of writing a long shell script with many `qemu` options, you describe each
-VM as a data structure in OCaml: its memory, its cores, its disks, and its network
-port redirections. The program reads the configuration and builds the `qemu` command
-for you.
+Instead of writing a long shell script with many `qemu` options, you describe
+each host as a data structure: its memory, its cores, its disks, its UEFI vars,
+and its network. The tool builds the `qemu` command, runs sanity checks, and
+starts the hosts.
 
-The goal is to run a small pool of VMs (for example, three hosts) with fine control over
-the network.
+A "host" here is an XCP-ng hypervisor running inside QEMU. The word "VM" is
+reserved for the guests that will later run *inside* those hosts.
 
-## Build & Run
+## Two ways to use it
 
-Build both executables:
+The logic lives in the `xcp` library (`lib/`), so you can drive it either from a
+one-shot launcher or interactively from a REPL.
+
+### From the launcher
+
+Build and run:
 
 ```shell
 dune build
+dune exec bin/xcp_launcher.exe
 ```
 
-This produces `xcp_launcher.exe` (the launcher) and `qmp_test.exe` (a small QMP client).
+Describe your hosts in `lib/conf.ml`. Before starting anything, the tool runs
+sanity checks on the whole pool and refuses to start if it finds a problem.
 
-Describe your VMs in `lib/conf.ml`, then start them:
+### From utop (interactive)
+
+For interactive pool management, use `utop` with the library loaded:
 
 ```shell
-./_build/default/bin/xcp_launcher.exe
+dune utop
 ```
 
-Before launching anything, the tool runs sanity checks on the whole pool and
-refuses to start if it finds a problem (see below).
+A `.ocamlinit` at the project root can `open Xcp` so the modules are available
+without a prefix.
 
-Once a VM is running, you can talk to it over QMP:
+Typical session:
+
+```ocaml
+Pool.load_pool_from_conf ();;      (* or load_pool_from_file "pool.sexp" *)
+Pool.available_hosts ();;          (* list hosts in the loaded pool *)
+Pool.start_host "vm1";;            (* start one host in the background *)
+```
+
+The REPL session keeps its state between commands, so the list of running hosts
+(with their PIDs and QMP sockets) persists as long as `utop` stays open.
+
+## Configuration
+
+A pool can be described two ways:
+
+- **As OCaml code** in `lib/conf.ml`, using the `Host.make` helper. Validated at
+  compile time.
+- **As an s-expression file**, loaded with `Pool.load_pool_from_file`. The types
+  derive `sexp`, so the file maps directly onto the `Host.t` structure. Editing
+  it does not require recompilation.
+
+## Talking to a host over QMP
+
+Once a host is running, you can talk to it over its QMP Unix socket
+(`/tmp/qmp-sock-<name>`):
 
 ```shell
-❯ ./_build/default/bin/qmp_test.exe /tmp/qmp-sock-vm1
-+First we need to read the greeting from Qemu
-+Got: {"QMP": {"version": {"qemu": {"micro": 11, "minor": 0, "major": 10}, "package": "Debian 1:10.0.11+ds-0+deb13u1"}, "capabilities": ["oob"]}}
-+
-+Now we can send the get_capabilities
-+Got: {"return": {}}
-+
-+Ready to run any command...
-+
-+Got: {"return": {"status": "running", "running": true}}
-+
+./_build/default/bin/qmp_test.exe /tmp/qmp-sock-vm1
 ```
 
-## Features
+The client opens the socket, performs the QMP capabilities handshake, and can
+send commands such as `query-status` and read the response.
 
-- **Typed configuration**. Each VM is an OCaml record (memory, cores, disks,
-  UEFI vars, port redirections). Invalid fields are caught at compile time.
-- **Sanity checks before launch**. The pool is validated up front, and nothing
-  starts if any check fails. All problems are reported at once, so you don't
-  fix them one restart at a time. Current checks: duplicated host ports across
-  VMs, and missing files (disks and UEFI vars).
-- **Concurrent launch**. Several VMs are started concurrently using Eio fibers.
-- **QMP support (basic)**. QMP (QEMU Machine Protocol) lets you talk to a running
-  VM through a Unix socket. The client opens a session, performs the capabilities
-  handshake, and can send commands (for example `query-status`) and read the
-  response.
+## Sanity checks
 
-## Planned features
+Run on the whole pool before launch, all reported at once:
 
-- **An interactive shell** to control VMs: send commands to query state or shut a
-  VM down cleanly from OCaml, instead of killing the process by hand.
-- **Proper JSON handling** for QMP requests and responses (currently exchanged as
-  raw strings).
-- **Finer network control**, moving beyond QEMU `user` networking so that VMs in a
-  pool can see each other (tap/bridge).
+- **Duplicated host ports** across hosts (for `user` networking).
+- **Missing files**: disks and UEFI vars.
+- **Missing taps**: for hosts in `tap` mode, checks that the tap interface
+  exists, and reports the one to create otherwise.
 
-The project is built with **OCaml 5** and **Eio**, so it can supervise several VMs at the
-same time using concurrent tasks.
+## Networking
+
+Two modes per host:
+
+- **`user`**: QEMU's built-in networking with host port redirections. Simple,
+  isolated, no setup.
+- **`tap`**: the host is attached to a bridge (for example libvirt's `virbr0`)
+  via a tap interface named `tap-<name>`. Hosts on the same bridge can see each
+  other and reach the internet through the bridge's NAT. The tap must exist
+  beforehand; the sanity check reports the command to create it.
+
+## Planned
+
+- Finer control over multiple network interfaces per host.
+- Higher-level QMP commands exposed as OCaml functions (query state, clean
+  shutdown) callable from utop.
+- Persistent QMP sessions kept open in the pool state.
+
+Built with **OCaml 5**. The interactive workflow uses **utop**; the QMP client
+uses plain `Unix` sockets.
