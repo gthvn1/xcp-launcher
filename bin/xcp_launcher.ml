@@ -8,7 +8,7 @@ let main out proc_mgr =
   List.map
     (fun h ->
       fun () ->
-       let cmd = qemu_system :: Host.host_to_args h in
+       let cmd = qemu_system :: Host.to_args h in
        Eio.Flow.copy_string
          ("== Starting " ^ Host.name h ^ " ==\n" ^ String.concat " " cmd
         ^ "\n\n")

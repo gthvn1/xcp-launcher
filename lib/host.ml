@@ -121,7 +121,7 @@ let check_taps (hosts : t list) : check_error list =
           else Some (Tap_not_found ("tap-" ^ h.name))
       | User -> None)
 
-let check_host_ports (hosts : t list) : check_error list =
+let check_ports (hosts : t list) : check_error list =
   List.map (fun h -> h.redirections) hosts
   |> List.concat
   |> List.map (fun r -> r.port_host)
@@ -141,15 +141,13 @@ let check_files_path (hosts : t list) : check_error list =
   |> List.map (fun f -> Missing_file f)
 
 let sanity_checks (hosts : t list) : (unit, check_error list) result =
-  let errors =
-    check_taps hosts @ check_host_ports hosts @ check_files_path hosts
-  in
+  let errors = check_taps hosts @ check_ports hosts @ check_files_path hosts in
   if errors = [] then Ok () else Error errors
 
 (* EXPOSED *)
 let qmp_socket_path host : string = "/tmp/qmp-sock-" ^ host.name
 
-let host_to_args host : string list =
+let to_args host : string list =
   let host_dir = files_dir host in
   (* TODO: probably pass the OVMF path as a VM field *)
   [

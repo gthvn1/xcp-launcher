@@ -30,7 +30,7 @@ val make :
 
 val sanity_checks : t list -> (unit, check_error list) result
 val qmp_socket_path : t -> string
-val host_to_args : t -> string list
+val to_args : t -> string list
 
 (* exposed for easy testing, remove it once well tested *)
 val duplicate_ints : int list -> int list
