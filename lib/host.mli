@@ -11,8 +11,8 @@ type t [@@deriving sexp]
 
 val qcow2 : string -> disk
 val raw : string -> disk
-val tcp : host:int -> guest:int -> redirection
-val udp : host:int -> guest:int -> redirection
+val tcp : port_host:int -> port_guest:int -> redirection
+val udp : port_host:int -> port_guest:int -> redirection
 val name : t -> string
 val desc : t -> string
 
@@ -28,6 +28,9 @@ val make :
   string ->
   t
 
+val check_tap : t -> check_error list
+val get_ports : t -> int list
+val check_files : t -> check_error list
 val sanity_checks : t list -> (unit, check_error list) result
 val qmp_socket_path : t -> string
 val to_args : t -> string list

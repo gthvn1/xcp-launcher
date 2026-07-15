@@ -5,7 +5,7 @@ type disk_ty = Qcow2 | Raw [@@deriving sexp]
 type disk = { ty : disk_ty; path : string } [@@deriving sexp]
 type redir_ty = Udp | Tcp [@@deriving sexp]
 
-type redirection = { ty : redir_ty; port_host : int; port_vm : int }
+type redirection = { ty : redir_ty; port_host : int; port_guest : int }
 [@@deriving sexp]
 
 type check_error =
@@ -37,8 +37,8 @@ let files_dir (host : t) : string =
 (* HELPERS *)
 let qcow2 path = { ty = Qcow2; path }
 let raw path = { ty = Raw; path }
-let tcp ~host ~guest = { ty = Tcp; port_host = host; port_vm = guest }
-let udp ~host ~guest = { ty = Udp; port_host = host; port_vm = guest }
+let tcp ~port_host ~port_guest = { ty = Tcp; port_host; port_guest }
+let udp ~port_host ~port_guest = { ty = Udp; port_host; port_guest }
 let name host = host.name
 let desc host = host.description
 
@@ -84,7 +84,7 @@ let disks_to_args (disks : disk list) (host_dir : string) : string list =
 let redirection_to_hostfwd redirection : string =
   Printf.sprintf "hostfwd=%s::%d-:%d"
     (redir_ty_to_string redirection.ty)
-    redirection.port_host redirection.port_vm
+    redirection.port_host redirection.port_guest
 
 let redirections_to_args redirections : string list =
   let r = List.map redirection_to_hostfwd redirections in
@@ -112,36 +112,40 @@ let duplicate_ints (lst : int list) : int list =
   in
   loop IntSet.empty (List.sort Int.compare lst) |> IntSet.to_list
 
-let check_taps (hosts : t list) : check_error list =
-  hosts
-  |> List.filter_map (fun h ->
-      match h.network with
-      | Tap ->
-          if Sys.file_exists ("/sys/class/net/tap-" ^ h.name) then None
-          else Some (Tap_not_found ("tap-" ^ h.name))
-      | User -> None)
+(* Currently we only have one tap *)
+let check_tap host : check_error list =
+  match host.network with
+  | User -> []
+  | Tap ->
+      if Sys.file_exists ("/sys/class/net/tap-" ^ host.name) then []
+      else [ Tap_not_found ("tap-" ^ host.name) ]
 
-let check_ports (hosts : t list) : check_error list =
-  List.map (fun h -> h.redirections) hosts
-  |> List.concat
-  |> List.map (fun r -> r.port_host)
+let check_all_taps (hosts : t list) : check_error list =
+  List.concat_map check_tap hosts
+
+let get_ports host : int list =
+  List.map (fun r -> r.port_host) host.redirections
+
+let check_all_ports (hosts : t list) : check_error list =
+  List.concat_map get_ports hosts
   |> duplicate_ints
   |> List.map (fun dup_port -> Duplicated_port dup_port)
 
-let check_files_path (hosts : t list) : check_error list =
-  (* First check the disks *)
-  hosts
-  |> List.map (fun h ->
-      let host_dir = files_dir h in
-      (* We check that paths to NVRAM and disks are accessible *)
-      Filename.concat host_dir h.uefi_vars
-      :: List.map (fun d -> Filename.concat host_dir d.path) h.disks)
-  |> List.concat
-  |> List.filter (fun f -> not (Sys.file_exists f))
-  |> List.map (fun f -> Missing_file f)
+let check_files host : check_error list =
+  let host_dir = files_dir host in
+  (* First we create a list with NVRAM and disks, then we check if some are missing *)
+  Filename.concat host_dir host.uefi_vars
+  :: List.map (fun d -> Filename.concat host_dir d.path) host.disks
+  |> List.filter_map (fun f ->
+      if Sys.file_exists f then None else Some (Missing_file f))
+
+let check_all_files (hosts : t list) : check_error list =
+  List.concat_map check_files hosts
 
 let sanity_checks (hosts : t list) : (unit, check_error list) result =
-  let errors = check_taps hosts @ check_ports hosts @ check_files_path hosts in
+  let errors =
+    check_all_taps hosts @ check_all_ports hosts @ check_all_files hosts
+  in
   if errors = [] then Ok () else Error errors
 
 (* EXPOSED *)
