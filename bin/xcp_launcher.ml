@@ -35,7 +35,10 @@ let () =
   | Ok () ->
       Eio_main.run (fun env ->
           main (Eio.Stdenv.stdout env) (Eio.Stdenv.process_mgr env))
-  | Error lst ->
+  | Error Pool.Empty_pool ->
+      Printf.eprintf "Empty pool. You need to load a pool from s-exp or conf\n";
+      exit 1
+  | Error (Pool.Sanity lst) ->
       List.iter
         (fun e ->
           match e with
@@ -51,4 +54,7 @@ let () =
                 \  sudo ip link set %s up\n"
                 t t t t)
         lst;
-      exit 1
+      exit 2
+  | Error (Pool.Runtime _) ->
+      Printf.eprintf "runtime error are not expected during sanity checks";
+      exit 3
